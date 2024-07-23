@@ -17,8 +17,8 @@ type ProcessResponse struct {
 	Message string `json:"message"`
 }
 
-func Pool() {
-	token := config.GetConfig().Token
+func Pool() error {
+	token := config.GetConfig().TlgToken
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		log.Panic(err)
@@ -30,6 +30,9 @@ func Pool() {
 	u.Timeout = 60
 
 	updates, err := bot.GetUpdatesChan(u)
+	if err != nil {
+		return err
+	}
 
 	for update := range updates {
 		if update.Message == nil {
@@ -46,6 +49,8 @@ func Pool() {
 			handleListProcesses(bot, update.Message)
 		}
 	}
+
+	return nil
 }
 
 func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action string) {
@@ -53,7 +58,10 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 
 	args := strings.Split(msg.Text, " ")
 	if len(args) != 2 {
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Usage: /"+action+"_process <id>"))
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Usage: /"+action+"_process <id>"))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
 		return
 	}
 
@@ -62,26 +70,38 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to create request"))
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to create request"))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
 		return
 	}
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to execute request"))
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to execute request"))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Request failed with status: "+resp.Status))
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Request failed with status: "+resp.Status))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
 		return
 	}
 
 	var processResp ProcessResponse
 	if err := json.NewDecoder(resp.Body).Decode(&processResp); err != nil {
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to decode response"))
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to decode response"))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
 		return
 	}
 
@@ -94,19 +114,28 @@ func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 
 	resp, err := http.Get(url)
 	if err != nil {
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to fetch processes"))
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to fetch processes"))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Request failed with status: "+resp.Status))
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Request failed with status: "+resp.Status))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
 		return
 	}
 
 	var processes []map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&processes); err != nil {
-		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to decode response"))
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to decode response"))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
 		return
 	}
 

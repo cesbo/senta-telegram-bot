@@ -1,0 +1,5 @@
+{
+    "tlg_token": "example_tlg_token",
+    "server": "http://localhost:8018",
+    "api_token": "example_api_token"
+}

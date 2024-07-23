@@ -7,7 +7,7 @@ import (
 )
 
 type Config struct {
-	Token    string `json:"token"`
+	TlgToken string `json:"tlg_token"`
 	Server   string `json:"server"`
 	APIToken string `json:"api_token"`
 }
