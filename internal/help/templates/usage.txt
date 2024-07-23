@@ -1,0 +1,16 @@
+{{ define "usage" -}}
+{{ template "version" . }}
+Usage:
+    {{ .Bin }} command|conf
+
+commands:
+
+    version     show version and exit
+    help        this help
+    init        initialization wizard
+
+сonf:             path to config file
+
+To see documentation please go to https://senta.tv
+
+{{ end }}

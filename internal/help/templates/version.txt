@@ -1,0 +1,3 @@
+{{ define "version" -}}
+{{ .AppName }} v{{ .Version }} (commit:{{ .Commit }})
+{{ end }}
