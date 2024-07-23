@@ -55,7 +55,6 @@ func Pool() error {
 
 func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action string) {
 	apiUrl := config.GetConfig().Server
-	apiToken := config.GetConfig().APIToken
 
 	args := strings.Split(msg.Text, " ")
 	if len(args) != 2 {
@@ -78,8 +77,7 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 		return
 	}
 
-	req.Header.Set("accept", "application/json")
-	req.Header.Set("api_key", apiToken)
+	setToken(req)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -92,7 +90,7 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
 		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Request failed with status: "+resp.Status))
 		if err != nil {
 			log.Println("Failed to send message ", err)
@@ -114,7 +112,6 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 
 func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	apiUrl := config.GetConfig().Server
-	apiToken := config.GetConfig().APIToken
 
 	url := fmt.Sprintf("%s/%s/process/list/status", apiUrl, apiUrlSuffix)
 
@@ -127,8 +124,7 @@ func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		return
 	}
 
-	req.Header.Set("accept", "application/json")
-	req.Header.Set("api_key", apiToken)
+	setToken(req)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -141,7 +137,7 @@ func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
 		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Request failed with status: "+resp.Status))
 		if err != nil {
 			log.Println("Failed to send message ", err)
@@ -164,4 +160,10 @@ func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	}
 
 	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, response))
+}
+
+func setToken(req *http.Request) {
+	token := config.GetConfig().APIToken
+	req.Header.Set("accept", "application/json")
+	req.Header.Set("api_key", token)
 }
