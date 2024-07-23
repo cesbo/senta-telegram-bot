@@ -55,6 +55,7 @@ func Pool() error {
 
 func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action string) {
 	apiUrl := config.GetConfig().Server
+	apiToken := config.GetConfig().APIToken
 
 	args := strings.Split(msg.Text, " ")
 	if len(args) != 2 {
@@ -76,6 +77,9 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 		}
 		return
 	}
+
+	req.Header.Set("accept", "application/json")
+	req.Header.Set("api_key", apiToken)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -110,9 +114,24 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 
 func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	apiUrl := config.GetConfig().Server
+	apiToken := config.GetConfig().APIToken
+
 	url := fmt.Sprintf("%s/%s/process/list/status", apiUrl, apiUrlSuffix)
 
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to create request"))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
+		return
+	}
+
+	req.Header.Set("accept", "application/json")
+	req.Header.Set("api_key", apiToken)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
 		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to fetch processes"))
 		if err != nil {
