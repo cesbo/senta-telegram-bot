@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"sentabot/internal/config"
+	"sentabot/internal/tlgbot"
 )
 
 type App struct {
@@ -29,6 +30,8 @@ func (a *App) Start() error {
 	if err := config.LoadConfig(a.path); err != nil {
 		return err
 	}
+
+	tlgbot.Pool()
 
 	return nil
 }
