@@ -35,22 +35,71 @@ func Pool() error {
 	}
 
 	for update := range updates {
-		if update.Message == nil {
+		if update.Message == nil && update.CallbackQuery == nil {
 			continue
 		}
 
-		if strings.HasPrefix(update.Message.Text, "/start_process") {
+		if update.CallbackQuery != nil {
+			switch update.CallbackQuery.Data {
+			case "list_processes":
+				handleListProcesses(bot, update.CallbackQuery.Message)
+			}
+			continue
+		}
+
+		switch {
+		case strings.HasPrefix(update.Message.Text, "/start"):
+			handleStartProcess(bot, update.Message)
+		case strings.HasPrefix(update.Message.Text, "/process"):
+			handlerProcess(bot, update.Message)
+		case strings.HasPrefix(update.Message.Text, "/process_start"):
 			handleProcessCommand(bot, update.Message, "start")
-		} else if strings.HasPrefix(update.Message.Text, "/stop_process") {
+		case strings.HasPrefix(update.Message.Text, "/process_stop"):
 			handleProcessCommand(bot, update.Message, "stop")
-		} else if strings.HasPrefix(update.Message.Text, "/restart_process") {
+		case strings.HasPrefix(update.Message.Text, "/process_restart"):
 			handleProcessCommand(bot, update.Message, "restart")
-		} else if update.Message.Text == "/list_processes" {
+		case update.Message.Text == "/list_processes":
 			handleListProcesses(bot, update.Message)
 		}
 	}
 
 	return nil
+}
+
+func handlerProcess(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+	// Create a button for /process_start
+	buttonStart := tgbotapi.NewInlineKeyboardButtonData("Start", "process_start")
+	// Create a button for /process_stop
+	buttonStop := tgbotapi.NewInlineKeyboardButtonData("Stop", "process_stop")
+	// Create a button for /process_restart
+	buttonRestart := tgbotapi.NewInlineKeyboardButtonData("Restart", "process_restart")
+	row := tgbotapi.NewInlineKeyboardRow(buttonStart, buttonStop, buttonRestart)
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(row)
+
+	// Send the button
+	message := tgbotapi.NewMessage(msg.Chat.ID, "Choose an action:")
+	message.ReplyMarkup = keyboard
+
+	_, err := bot.Send(message)
+	if err != nil {
+		log.Println("Failed to send button: ", err)
+	}
+}
+
+func handleStartProcess(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+	// Create a button for /list_processes
+	button := tgbotapi.NewInlineKeyboardButtonData("List Processes", "list_processes")
+	row := tgbotapi.NewInlineKeyboardRow(button)
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(row)
+
+	// Send the button
+	message := tgbotapi.NewMessage(msg.Chat.ID, "Choose an action:")
+	message.ReplyMarkup = keyboard
+
+	_, err := bot.Send(message)
+	if err != nil {
+		log.Println("Failed to send button: ", err)
+	}
 }
 
 func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action string) {
@@ -156,10 +205,16 @@ func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 
 	var response string
 	for _, process := range processes {
-		response += fmt.Sprintf("ID: %d, Name: %s, Active: %t\n", int(process["id"].(float64)), process["name"].(string), process["is_active"].(bool))
+		flag := "🔴"
+		if process["is_active"].(bool) {
+			flag = "🟢"
+		}
+		response += fmt.Sprintf("📺: %s, %s /process_%d\n", process["name"].(string), flag, int(process["id"].(float64)))
 	}
 
 	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, response))
+
+	handleStartProcess(bot, msg)
 }
 
 func setToken(req *http.Request) {
