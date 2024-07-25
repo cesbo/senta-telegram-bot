@@ -45,13 +45,15 @@ func Pool() error {
 				handleListProcesses(bot, update.CallbackQuery.Message)
 			}
 
+			log.Println("CallbackQuery: ", update.CallbackQuery.Data)
+
 			switch {
 			case strings.HasPrefix(update.CallbackQuery.Data, "process_start"):
-				handleProcessCommand(bot, update.CallbackQuery.Message, "start")
+				handleProcessCommand(bot, update.CallbackQuery, "start")
 			case strings.HasPrefix(update.CallbackQuery.Data, "process_stop"):
-				handleProcessCommand(bot, update.CallbackQuery.Message, "stop")
+				handleProcessCommand(bot, update.CallbackQuery, "stop")
 			case strings.HasPrefix(update.CallbackQuery.Data, "process_restart"):
-				handleProcessCommand(bot, update.CallbackQuery.Message, "restart")
+				handleProcessCommand(bot, update.CallbackQuery, "restart")
 			}
 
 			continue
@@ -115,24 +117,26 @@ func handleStartProcess(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	}
 }
 
-func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action string) {
+func handleProcessCommand(bot *tgbotapi.BotAPI, callBack *tgbotapi.CallbackQuery, action string) {
 	apiUrl := config.GetConfig().Server
 
-	args := strings.Split(msg.Text, " ")
-	if len(args) != 2 {
-		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Usage: /"+action+"_process <id>"))
+	args := strings.Split(callBack.Data, "_")
+	if len(args) != 3 {
+		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Usage: /"+action+"_process <id>"))
 		if err != nil {
 			log.Println("Failed to send message ", err)
 		}
 		return
 	}
 
-	id := args[1]
+	id := args[2]
+
+	log.Println("Process command: ", action, id)
 	url := fmt.Sprintf("%s/%s/process/%s/%s", apiUrl, apiUrlSuffix, id, action)
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {
-		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to create request"))
+		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Failed to create request"))
 		if err != nil {
 			log.Println("Failed to send message ", err)
 		}
@@ -144,7 +148,7 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to execute request"))
+		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Failed to execute request"))
 		if err != nil {
 			log.Println("Failed to send message ", err)
 		}
@@ -153,7 +157,7 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 	defer resp.Body.Close()
 
 	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Request failed with status: "+resp.Status))
+		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Request failed with status: "+resp.Status))
 		if err != nil {
 			log.Println("Failed to send message ", err)
 		}
@@ -162,14 +166,14 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, msg *tgbotapi.Message, action st
 
 	var processResp ProcessResponse
 	if err := json.NewDecoder(resp.Body).Decode(&processResp); err != nil {
-		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to decode response"))
+		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Failed to decode response"))
 		if err != nil {
 			log.Println("Failed to send message ", err)
 		}
 		return
 	}
 
-	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, processResp.Message))
+	bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, processResp.Message))
 }
 
 func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
