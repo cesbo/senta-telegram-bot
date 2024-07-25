@@ -3,6 +3,7 @@ package tlgbot
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sentabot/internal/config"
@@ -135,7 +136,9 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, callBack *tgbotapi.CallbackQuery
 	url := fmt.Sprintf("%s/%s/process/%s/%s", apiUrl, apiUrlSuffix, id, action)
 
 	req, err := http.NewRequest("POST", url, nil)
+	log.Println("Request: ", req)
 	if err != nil {
+		log.Println("Failed to create request: ", err)
 		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Failed to create request"))
 		if err != nil {
 			log.Println("Failed to send message ", err)
@@ -147,6 +150,7 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, callBack *tgbotapi.CallbackQuery
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
+	log.Println("Response: ", resp, err)
 	if err != nil {
 		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Failed to execute request"))
 		if err != nil {
@@ -157,7 +161,22 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, callBack *tgbotapi.CallbackQuery
 	defer resp.Body.Close()
 
 	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Request failed with status: "+resp.Status))
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Println("Failed to read response body: ", err)
+			return
+		}
+		bs := string(body)
+
+		if strings.TrimSpace(bs) == "try to stop nil cmd process" {
+			_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Process not found"))
+			if err != nil {
+				log.Println("Failed to send message ", err)
+			}
+			return
+		}
+
+		_, err = bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Request failed with msg: "+string(body)))
 		if err != nil {
 			log.Println("Failed to send message ", err)
 		}
