@@ -67,12 +67,23 @@ func Pool() error {
 }
 
 func handlerProcess(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+	args := strings.Split(msg.Text, "_")
+	if len(args) < 2 {
+		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Invalid command format. Usage: /process_<id>"))
+		if err != nil {
+			log.Println("Failed to send message ", err)
+		}
+		return
+	}
+
+	id := args[1]
+
 	// Create a button for /process_start
-	buttonStart := tgbotapi.NewInlineKeyboardButtonData("Start", "process_start")
+	buttonStart := tgbotapi.NewInlineKeyboardButtonData("Start", fmt.Sprintf("process_start_%s", id))
 	// Create a button for /process_stop
-	buttonStop := tgbotapi.NewInlineKeyboardButtonData("Stop", "process_stop")
+	buttonStop := tgbotapi.NewInlineKeyboardButtonData("Stop", fmt.Sprintf("process_stop_%s", id))
 	// Create a button for /process_restart
-	buttonRestart := tgbotapi.NewInlineKeyboardButtonData("Restart", "process_restart")
+	buttonRestart := tgbotapi.NewInlineKeyboardButtonData("Restart", fmt.Sprintf("process_restart_%s", id))
 	row := tgbotapi.NewInlineKeyboardRow(buttonStart, buttonStop, buttonRestart)
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(row)
 
