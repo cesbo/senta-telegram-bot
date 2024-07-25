@@ -44,6 +44,16 @@ func Pool() error {
 			case "list_processes":
 				handleListProcesses(bot, update.CallbackQuery.Message)
 			}
+
+			switch {
+			case strings.HasPrefix(update.CallbackQuery.Data, "process_start"):
+				handleProcessCommand(bot, update.CallbackQuery.Message, "start")
+			case strings.HasPrefix(update.CallbackQuery.Data, "process_stop"):
+				handleProcessCommand(bot, update.CallbackQuery.Message, "stop")
+			case strings.HasPrefix(update.CallbackQuery.Data, "process_restart"):
+				handleProcessCommand(bot, update.CallbackQuery.Message, "restart")
+			}
+
 			continue
 		}
 
@@ -52,14 +62,6 @@ func Pool() error {
 			handleStartProcess(bot, update.Message)
 		case strings.HasPrefix(update.Message.Text, "/process"):
 			handlerProcess(bot, update.Message)
-		case strings.HasPrefix(update.Message.Text, "/process_start"):
-			handleProcessCommand(bot, update.Message, "start")
-		case strings.HasPrefix(update.Message.Text, "/process_stop"):
-			handleProcessCommand(bot, update.Message, "stop")
-		case strings.HasPrefix(update.Message.Text, "/process_restart"):
-			handleProcessCommand(bot, update.Message, "restart")
-		case update.Message.Text == "/list_processes":
-			handleListProcesses(bot, update.Message)
 		}
 	}
 
