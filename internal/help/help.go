@@ -19,7 +19,7 @@ type About struct {
 
 var (
 	about = About{
-		AppName: "Senta - streamer",
+		AppName: "Senta - tlgbot",
 	}
 
 	//go:embed templates

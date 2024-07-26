@@ -12,8 +12,6 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-const apiUrlSuffix = "rest/api/v1"
-
 type ProcessResponse struct {
 	Message string `json:"message"`
 }
@@ -23,6 +21,8 @@ type Process struct {
 	Name     string `json:"name"`
 	IsActive bool   `json:"is_active"`
 }
+
+const apiUrlSuffix = "rest/api/v1"
 
 func Pool() error {
 	token := config.GetConfig().TlgToken
@@ -125,7 +125,7 @@ func handleStartProcess(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 func handleProcessCommand(bot *tgbotapi.BotAPI, callBack *tgbotapi.CallbackQuery, action string) {
 	args := strings.Split(callBack.Data, "_")
 	if len(args) != 3 {
-		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Usage: /"+action+"_process <id>"))
+		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Usage: button '"+action+"_process_<id>'"))
 		if err != nil {
 			log.Println("Failed to send message ", err)
 		}

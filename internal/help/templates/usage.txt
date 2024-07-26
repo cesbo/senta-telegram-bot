@@ -7,7 +7,6 @@ commands:
 
     version     show version and exit
     help        this help
-    init        initialization wizard
 
 сonf:             path to config file
 
