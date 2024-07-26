@@ -18,6 +18,12 @@ type ProcessResponse struct {
 	Message string `json:"message"`
 }
 
+type Process struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	IsActive bool   `json:"is_active"`
+}
+
 func Pool() error {
 	token := config.GetConfig().TlgToken
 	bot, err := tgbotapi.NewBotAPI(token)
@@ -41,12 +47,10 @@ func Pool() error {
 		}
 
 		if update.CallbackQuery != nil {
-			switch update.CallbackQuery.Data {
-			case "list_processes":
+			if update.CallbackQuery.Data == "list_processes" {
 				handleListProcesses(bot, update.CallbackQuery.Message)
+				continue
 			}
-
-			log.Println("CallbackQuery: ", update.CallbackQuery.Data)
 
 			switch {
 			case strings.HasPrefix(update.CallbackQuery.Data, "process_start"):
@@ -119,8 +123,6 @@ func handleStartProcess(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 }
 
 func handleProcessCommand(bot *tgbotapi.BotAPI, callBack *tgbotapi.CallbackQuery, action string) {
-	apiUrl := config.GetConfig().Server
-
 	args := strings.Split(callBack.Data, "_")
 	if len(args) != 3 {
 		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Usage: /"+action+"_process <id>"))
@@ -133,7 +135,7 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, callBack *tgbotapi.CallbackQuery
 	id := args[2]
 
 	log.Println("Process command: ", action, id)
-	url := fmt.Sprintf("%s/%s/process/%s/%s", apiUrl, apiUrlSuffix, id, action)
+	url := fmt.Sprintf("%s/process/%s/%s", getApiUrl(), id, action)
 
 	req, err := http.NewRequest("POST", url, nil)
 	log.Println("Request: ", req)
@@ -196,9 +198,7 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, callBack *tgbotapi.CallbackQuery
 }
 
 func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	apiUrl := config.GetConfig().Server
-
-	url := fmt.Sprintf("%s/%s/process/list/status", apiUrl, apiUrlSuffix)
+	url := fmt.Sprintf("%s/process/list/status", getApiUrl())
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -230,7 +230,7 @@ func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 		return
 	}
 
-	var processes []map[string]interface{}
+	var processes []Process
 	if err := json.NewDecoder(resp.Body).Decode(&processes); err != nil {
 		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to decode response"))
 		if err != nil {
@@ -242,10 +242,11 @@ func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	var response string
 	for _, process := range processes {
 		flag := "🔴"
-		if process["is_active"].(bool) {
+		if process.IsActive {
 			flag = "🟢"
 		}
-		response += fmt.Sprintf("📺: %s, %s /process_%d\n", process["name"].(string), flag, int(process["id"].(float64)))
+
+		response += fmt.Sprintf("📺: %s, %s /process_%d\n", process.Name, flag, process.ID)
 	}
 
 	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, response))
@@ -257,4 +258,8 @@ func setToken(req *http.Request) {
 	token := config.GetConfig().APIToken
 	req.Header.Set("accept", "application/json")
 	req.Header.Set("api_key", token)
+}
+
+func getApiUrl() string {
+	return config.GetConfig().Server + "/" + apiUrlSuffix
 }
