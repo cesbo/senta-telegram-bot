@@ -1,31 +1,19 @@
 package tlgbot
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
+	"sentabot/internal/astraapi"
 	"sentabot/internal/config"
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
-type ProcessResponse struct {
-	Message string `json:"message"`
-}
-
-type Process struct {
-	ID       int    `json:"id"`
-	Name     string `json:"name"`
-	IsActive bool   `json:"is_active"`
-}
-
-const apiUrlSuffix = "rest/api/v1"
-
 func Pool() error {
 	token := config.GetConfig().TlgToken
+	acceptedUsers := config.GetConfig().AcceptedUsers
+
 	bot, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		log.Panic(err)
@@ -43,6 +31,22 @@ func Pool() error {
 
 	for update := range updates {
 		if update.Message == nil && update.CallbackQuery == nil {
+			continue
+		}
+
+		msgUser := update.Message.From
+
+		isAccepted := false
+
+		for _, user := range acceptedUsers {
+			if user == msgUser.UserName {
+				isAccepted = true
+				break
+			}
+		}
+
+		if !isAccepted {
+			log.Printf("User %s is not accepted", msgUser.UserName)
 			continue
 		}
 
@@ -135,112 +139,29 @@ func handleProcessCommand(bot *tgbotapi.BotAPI, callBack *tgbotapi.CallbackQuery
 	id := args[2]
 
 	log.Println("Process command: ", action, id)
-	url := fmt.Sprintf("%s/process/%s/%s", getApiUrl(), id, action)
-
-	req, err := http.NewRequest("POST", url, nil)
-	log.Println("Request: ", req)
+	pr, err := astraapi.ProcessAction(action, id)
 	if err != nil {
-		log.Println("Failed to create request: ", err)
-		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Failed to create request"))
+		_, err = bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, fmt.Sprintf("Failed to %s process: %s", action, err)))
 		if err != nil {
 			log.Println("Failed to send message ", err)
 		}
 		return
 	}
 
-	setToken(req)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	log.Println("Response: ", resp, err)
-	if err != nil {
-		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Failed to execute request"))
-		if err != nil {
-			log.Println("Failed to send message ", err)
-		}
-		return
-	}
-	defer resp.Body.Close()
-
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Println("Failed to read response body: ", err)
-			return
-		}
-		bs := string(body)
-
-		if strings.TrimSpace(bs) == "try to stop nil cmd process" {
-			_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Process not found"))
-			if err != nil {
-				log.Println("Failed to send message ", err)
-			}
-			return
-		}
-
-		_, err = bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Request failed with msg: "+string(body)))
-		if err != nil {
-			log.Println("Failed to send message ", err)
-		}
-		return
-	}
-
-	var processResp ProcessResponse
-	if err := json.NewDecoder(resp.Body).Decode(&processResp); err != nil {
-		_, err := bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, "Failed to decode response"))
-		if err != nil {
-			log.Println("Failed to send message ", err)
-		}
-		return
-	}
-
-	bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, processResp.Message))
+	bot.Send(tgbotapi.NewMessage(callBack.Message.Chat.ID, pr.Message))
 }
 
 func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
-	url := fmt.Sprintf("%s/process/list/status", getApiUrl())
-
-	req, err := http.NewRequest("GET", url, nil)
+	processes, err := astraapi.GetProcessStarus()
 	if err != nil {
-		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to create request"))
+		_, err = bot.Send(tgbotapi.NewMessage(msg.Chat.ID, fmt.Sprintf("Failed to fetch processes: %s", err)))
 		if err != nil {
 			log.Println("Failed to send message ", err)
 		}
-		return
-	}
-
-	setToken(req)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to fetch processes"))
-		if err != nil {
-			log.Println("Failed to send message ", err)
-		}
-		return
-	}
-	defer resp.Body.Close()
-
-	if !(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated) {
-		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Request failed with status: "+resp.Status))
-		if err != nil {
-			log.Println("Failed to send message ", err)
-		}
-		return
-	}
-
-	var processes []Process
-	if err := json.NewDecoder(resp.Body).Decode(&processes); err != nil {
-		_, err := bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Failed to decode response"))
-		if err != nil {
-			log.Println("Failed to send message ", err)
-		}
-		return
 	}
 
 	var response string
-	for _, process := range processes {
+	for _, process := range *processes {
 		flag := "🔴"
 		if process.IsActive {
 			flag = "🟢"
@@ -252,14 +173,4 @@ func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, response))
 
 	handleStartProcess(bot, msg)
-}
-
-func setToken(req *http.Request) {
-	token := config.GetConfig().APIToken
-	req.Header.Set("accept", "application/json")
-	req.Header.Set("api_key", token)
-}
-
-func getApiUrl() string {
-	return config.GetConfig().Server + "/" + apiUrlSuffix
 }

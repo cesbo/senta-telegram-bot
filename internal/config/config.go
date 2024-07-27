@@ -7,9 +7,10 @@ import (
 )
 
 type Config struct {
-	TlgToken string `json:"tlg_token"`
-	Server   string `json:"server"`
-	APIToken string `json:"api_token"`
+	TlgToken      string   `json:"tlg_token"`
+	Server        string   `json:"server"`
+	APIToken      string   `json:"api_token"`
+	AcceptedUsers []string `json:"accepted_users"`
 }
 
 var config Config
