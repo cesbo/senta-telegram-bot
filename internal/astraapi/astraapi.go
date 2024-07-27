@@ -22,7 +22,7 @@ type ProcessStatus struct {
 
 const apiUrlSuffix = "rest/api/v1"
 
-func ProcessAction(action string, id string) (pr *ProcessResponse, err error) {
+func ProcessAction(action string, id string) (pr ProcessResponse, err error) {
 	url := fmt.Sprintf("%s/process/%s/%s", getApiUrl(), id, action)
 
 	req, err := http.NewRequest("POST", url, nil)
@@ -55,7 +55,7 @@ func ProcessAction(action string, id string) (pr *ProcessResponse, err error) {
 		return
 	}
 
-	if err = json.NewDecoder(resp.Body).Decode(pr); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&pr); err != nil {
 		log.Println("Failed to decode response: ", err)
 		err = errors.New("Failed to decode response: " + err.Error())
 		return
@@ -64,7 +64,7 @@ func ProcessAction(action string, id string) (pr *ProcessResponse, err error) {
 	return
 }
 
-func GetProcessStarus() (ps *[]ProcessStatus, err error) {
+func GetProcessStarus() (ps []ProcessStatus, err error) {
 	url := fmt.Sprintf("%s/process/list/status", getApiUrl())
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -89,7 +89,7 @@ func GetProcessStarus() (ps *[]ProcessStatus, err error) {
 		return
 	}
 
-	if err = json.NewDecoder(resp.Body).Decode(ps); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&ps); err != nil {
 		log.Println("Failed to decode response: ", err)
 		err = errors.New("Failed to decode response: " + err.Error())
 		return

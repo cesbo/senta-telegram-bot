@@ -34,19 +34,25 @@ func Pool() error {
 			continue
 		}
 
-		msgUser := update.Message.From
+		msgUser := ""
+
+		if update.Message != nil && update.Message.From != nil && update.Message.From.UserName != "" {
+			msgUser = update.Message.From.UserName
+		} else if update.CallbackQuery != nil && update.CallbackQuery.From != nil && update.CallbackQuery.From.UserName != "" {
+			msgUser = update.CallbackQuery.From.UserName
+		}
 
 		isAccepted := false
 
 		for _, user := range acceptedUsers {
-			if user == msgUser.UserName {
+			if user == msgUser {
 				isAccepted = true
 				break
 			}
 		}
 
 		if !isAccepted {
-			log.Printf("User %s is not accepted", msgUser.UserName)
+			log.Printf("User %s is not accepted", msgUser)
 			continue
 		}
 
@@ -161,7 +167,7 @@ func handleListProcesses(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	}
 
 	var response string
-	for _, process := range *processes {
+	for _, process := range processes {
 		flag := "🔴"
 		if process.IsActive {
 			flag = "🟢"
