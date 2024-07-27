@@ -1,5 +1,6 @@
 {
-    "tlg_token": "example_tlg_token",
+    "tlg_token": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
     "server": "http://localhost:8018",
-    "api_token": "example_api_token"
+    "api_token": "123456",
+    "accepted_users": ["user_001", "user_002"]
 }
